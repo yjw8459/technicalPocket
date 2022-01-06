@@ -1,4 +1,4 @@
-package yjw.technical.validation;
+package yjw.technical.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
