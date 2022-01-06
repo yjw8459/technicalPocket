@@ -23,7 +23,7 @@ public class ProductConstraintValidator
     }
 
     /**
-     * isValid() 메서드에서는
+     * isValid() 메서드에서는 파라미터를 검증 대상 객체로 받기 때문에 추가 유효성 검사를 시도할 수 있다.
      * @param value
      * @param context
      * @return
