@@ -1,0 +1,187 @@
+/**
+Mockito
+
+1. Mock 객체 의존성 주입
+@Mock : Mock 객체를 만들어 반환해주는 어노테이션
+@Spy : Stub하지 않은 메소드들은 원본 메소드 그대로 사용하는 어노테이션
+@InjectMocks : @Mock 또는 @Spy로 생성된 가짜 객체를 자동으로 주입시켜주는 어노테이션
+
+CmmnController에 대한 단위테스트를 작성할 때, CmmnService를 사용하고 있으면 @Mock 어노테이션으로
+가짜 CmmnService를 만들고, @InjectMocks를 통해 CmmnController에 주입시킬 수 있다.
+
+2. Stub로 결과 처리
+의존성이 있는 객체는 가짜 객체(Mock Object)를 주입하여 어떤 결과를 반환하라고 정해진 답변을 준비시켜야 한다.
+Mockito의 Stub 메서드
+* doReturn()  : Mock 객체가 특정한 값을 반환해야 하는 경우
+* doNothing() : Mock 객체가 아무 것도 반환하지 않는 경우(void)
+* doThrow()   : Mock 객체가 예외를 발생시키는 경우
+ *
+3. Mockito와 Junit의 결합
+Mockito도 테스팅 프레임워크이기 때문에 JUnit과 결합되기 위해서 별도의 작업이 필요
+기존의 JUnit4에서 Mockito를 활용하기 위해서는 클래스 어노테이션으로 @RunWith(MockitoJUnitRunner.class)를
+붙여야한다.
+하지만 SpringBoot 2.2.0부터 공식적으로 JUnit5를 지원함에 따라
+@ExtendWith(MockitoExtension.class)를 사용해야 결합이 가능하다.
+
+
+참고 사이트 : https://mangkyu.tistory.com/145
+
+
+
+MockMvc
+
+웹 애플리케이션을 애플리케이션 서버에 배포하지 않고 스프링 MVC 동작을 재현할 수 있는 클래스
+
+MockMvc 설정
+
+* 사용자 정의 DI 컨테이너 모드
+스프링 MVC의 설정을 적용한 DI 컨테이너를 만들어 이 DI 컨테이너를 사용해 스프링 MVC 동작 재현
+애플리케이션 서버에 배포한 것과 같은 것처럼 테스트 가능(실제처럼)
+
+TestClass {
+    @Autowired  //테스트할 Application Context 인젝션
+    WebApplicationContext context;
+
+    MockMvc mockMvc;
+    @Test
+    public void setUpMockMvc(){
+        //테스트할 컨텍스트를 지정한 MockMvc 생성
+        this.mockMvc = MockMvcBuilders.webApplicationContextSetup(context).build();
+    }
+
+}
+
+* 단독모드
+스프링 MVC 설정을 '스프링 테스트'측에서 처리(MVC설정을 테스트에 위임)
+스프링 테스트가 생성된 DI 컨테이너를 사용해 스프링 MVC 동작을 재현
+스프링 테스트의 각종 설정은 테스트 케이스 측에서 커스텀 가능
+스프링 MVC 기능을 이용하면서도 단위 테스트 관점에서 컨트롤러 테스트
+: '스프링 테스트' 측으로 MVC 설정을 위임함으로 컨트롤러의 단위 테스트에 사용한다.
+
+TestClass{
+    MockMvc mockMvc;
+
+    @Before
+    public void setUpMockMvc(){
+        this.mockMvc = MockMvcBuilders.standaloneSetup(new Controller()).build();
+    }
+}
+특징 : 테스트 대상 컨트롤러를 지정해서 MockMvc 생성
+필요에 따라서 standaloneMockMvcBuilders()를 호출하여 '스프링 테스트'의 설정 커스텀
+
+
+TestClass{
+    MockMvc mockMvc;
+
+    1.
+    @InjectMocks
+    Controller controller;
+
+    2.
+    @Mock
+    Service service;
+
+    @Before
+    public void setUpMockMvc(){
+
+        3.
+        MockitoAnnotations.initMocks(this);
+        this.mockMvc = MockMvcBuilders.standaloneSetup(new Controller()).build();
+    }
+}
+1. @InjectMocks : 테스트 대상의 컨트롤러에 지정
+
+2. @Mock / @Spy : 모의로 생성할 컴포넌트에 @Mock, @Spy 지정
+@InjectMocks(테스트 대상)에 @Mock을 인젝션
+
+3. MockitoAnnotations.initMocks(this);
+@RunWith(MockitoJUnitRunner.class)와 같은 효과
+테스트 대상의 컨트롤러를 지정해 MockMvc를 생성
+
+* 서블릿 필터 추가
+MockMvc에 서블릿 필터 추가
+
+@Before
+public void setUpMockMvc(){
+    MockitoAnnoatations.initMocks(this);
+    this.mockMvc = MockMvcBuilders.standaloneSetUp(controller)
+            .addFilter(new CharacterEncodingFilter("UTF-8"))
+            .build();
+}
+
+* static 메서드 임포트
+1. MockMvcRequestBuilders (빌더)
+2. MockMvcResultMatchers  (매처)
+3. MockMvcResultHandlers  (핸들러)
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.*;
+
+MockMvcRequestBuilders : 요청 데이터를 설정할 때 사용할 static 메서드
+MockMvcResultMatchers : 실행 결과를 검증할 때 사용할 static 메서드
+MockMvcResultHandlers : 실행 결과를 로그 등으로 출력할 때 사용할 static 메서드
+
+
+* 테스트 실행
+컨트롤러를 호출할 때 필요한 요청 데이터를 설정
+MockMvc에 요청을 의뢰
+
+@RequestMapping(value = "/", method = RequestMethod.GET)
+public String home() {
+    return "index";
+}
+
+@Test
+public void testHome() throws Exception{
+    mockMvc.perform(get("/"))
+            .andExpect(status().isOk())
+            .andExpect(forwardedUrl("/WEB-INF/index.jsp"));
+}
+
+perform() -> perform(MockMvcRequestBuilders) returnType : ResultActions
+    DispatcherServlet에 요청을 의뢰
+    MockMvcRequestBuilders를 사용하여 설정한 요청 데이터를 perform()의 인수로 전달
+    get / post / fileUpload 와 같은 메서드 제공
+    perform()에서 반환된 ResultActions() 호출
+    실행결과 검증
+
+
+* 요청 데이터 설정
+MockMvcRequestBuilders의 주요 메서드
+param / params : 요청 메서드 설정
+header / headers : 요청 헤더 설정, contentType & accept와 같은 특정 헤더를 설정하는 메서드도 제공
+cookie : 쿠키 설정
+content : 요청 본문 설정
+requestAttr : 요청 스코프에 객제를 설정
+sessionAttr : 세션 스코프에 객체를 설정
+
+* 실행 결과 검증
+ResultActions의 andExpect() : 인수에 실행결과를 검증하는 ResultMatcher 지정
+                                (MockMvcResultMatchers에서 제공)
+
+MockMvcResultMatchers 주요 메서드
+
+status : HTTP 상태 코드 검증
+
+header : 응답 헤더의 상태 검증
+
+cookie : 쿠키 상태 검증
+
+content : 응답 본문 내용 검증
+
+view : 컨트롤러가 반환한 뷰 이름 검증
+
+forwardedUrl : 이동대상의 경로를 검증
+
+model : 스프링 MVC 모델 상태 검증
+
+flash : 플래시 스코프의 상태 검증
+
+request : 서블릿 3.0부터 지원되는 비동기 처리의 상태나 요청 스코프의 상태,
+            세션 스코프의 상태 검증
+
+
+
+
+
